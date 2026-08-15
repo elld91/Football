@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lower-League Model</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LL Model">
+<meta name="theme-color" content="#0d1117">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='38' fill='%230d1117'/%3E%3Ccircle cx='90' cy='90' r='52' fill='none' stroke='%234c9f70' stroke-width='9'/%3E%3Cpath d='M90 38v104M38 90h104' stroke='%234c9f70' stroke-width='9'/%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Lower-League%20Model%22%2C%22short_name%22%3A%22LL%20Model%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230d1117%22%2C%22theme_color%22%3A%22%230d1117%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2527%2520viewBox%253D%25270%25200%2520180%2520180%2527%253E%253Crect%2520width%253D%2527180%2527%2520height%253D%2527180%2527%2520fill%253D%2527%25230d1117%2527%252F%253E%253Ccircle%2520cx%253D%252790%2527%2520cy%253D%252790%2527%2520r%253D%252752%2527%2520fill%253D%2527none%2527%2520stroke%253D%2527%25234c9f70%2527%2520stroke-width%253D%25279%2527%252F%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d1117; --panel:#161d27; --panel2:#1d2632; --line:#28323f;
+    --text:#e6ecf3; --muted:#8593a4;
+    --home:#4c9f70; --draw:#d99c52; --away:#5b8fb0; --loss:#b8636b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ink);color:var(--text);
+       font-family:Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;
+       -webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:22px 16px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+  h1{font-family:"Barlow Condensed",sans-serif;font-weight:700;letter-spacing:.02em;
+     text-transform:uppercase;font-size:30px;margin:0;line-height:1}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .badge{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;
+         font-size:11px;padding:2px 8px;border:1px solid var(--line);border-radius:2px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;margin:0 0 18px;flex-wrap:wrap}
+  .tab{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.04em;
+       font-size:15px;font-weight:600;padding:7px 14px;background:var(--panel);border:1px solid var(--line);
+       color:var(--muted);border-radius:3px;cursor:pointer}
+  .tab.on{color:var(--text);border-color:var(--home);background:var(--panel2)}
+  .honesty{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--draw);
+           border-radius:4px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);
+           display:flex;gap:20px;flex-wrap:wrap;align-items:baseline}
+  .honesty b{color:var(--text);font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:14px 15px;margin-bottom:11px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .teams{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:600;line-height:1.15}
+  .vs{color:var(--muted);font-weight:500;padding:0 4px}
+  .date{color:var(--muted);font-size:12px;white-space:nowrap}
+  .form{display:flex;gap:8px;margin:7px 0 12px;font-size:12px;color:var(--muted)}
+  .pill{letter-spacing:1px;font-weight:600}
+  .W{color:var(--home)} .D{color:var(--draw)} .L{color:var(--loss)}
+  .news{font-size:12px;color:#cdb890;background:#1e1a12;border:1px solid #4a3d22;border-radius:3px;
+        padding:6px 9px;margin:-2px 0 11px;line-height:1.45}
+  .news b{color:#e8d3b0;font-weight:600}
+  .bar{display:flex;height:26px;border-radius:3px;overflow:hidden;margin-bottom:4px}
+  .seg{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#0d1117;min-width:34px}
+  .seg.h{background:var(--home)} .seg.d{background:var(--draw)} .seg.a{background:var(--away)}
+  .barkey{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:3px;padding:4px 9px;font-size:12px;color:var(--muted)}
+  .chip b{color:var(--text);font-weight:600}
+  .scores{display:flex;gap:7px;margin-top:11px}
+  .score{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:14px;background:var(--panel2);
+         border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--text)}
+  .score span{color:var(--muted);font-family:Inter;font-weight:400;font-size:11px;margin-left:5px}
+  .derby{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.05em;
+         font-size:11px;font-weight:600;color:var(--draw);border:1px solid var(--draw);
+         border-radius:2px;padding:1px 6px;vertical-align:middle;white-space:nowrap}
+  .h2h{margin-top:10px;font-size:12px;color:var(--muted)}
+  .h2h b{color:var(--text);font-weight:600} .h2h span{opacity:.7}
+  .accrow{display:flex;align-items:center;gap:11px;background:var(--panel);border:1px solid var(--line);
+          border-radius:5px;padding:10px 13px;margin-bottom:7px;cursor:pointer}
+  .accrow.sel{border-color:var(--home);background:var(--panel2)}
+  .accrow input{width:17px;height:17px;accent-color:var(--home);flex:none}
+  .accrow .m{flex:1;font-family:"Barlow Condensed",sans-serif;font-size:16px;font-weight:600}
+  .accrow .m span{font-family:Inter;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block;font-weight:400}
+  .accrow .n{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+  .accrow .n b{color:var(--text);font-size:15px;font-family:"Barlow Condensed",sans-serif}
+  .quick{display:flex;gap:7px;margin-bottom:14px}
+  .quick button{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.04em;
+    font-size:13px;font-weight:600;padding:6px 12px;background:var(--panel2);border:1px solid var(--line);
+    color:var(--muted);border-radius:3px;cursor:pointer}
+  .accsum{position:sticky;top:0;background:var(--panel2);border:1px solid var(--home);border-radius:5px;
+    padding:13px 15px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:18px}
+  .accsum div{font-size:12px;color:var(--muted)} .accsum b{display:block;color:var(--text);
+    font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:700;margin-top:2px}
+  .accread{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--draw);
+    border-radius:4px;padding:11px 14px;margin-bottom:14px;font-size:13px;line-height:1.5;color:var(--muted)}
+  .warn{background:#241a12;border:1px solid #6b4a1f;border-left:3px solid var(--draw);
+        border-radius:4px;padding:13px 15px;margin-bottom:16px;font-size:13px;line-height:1.55;color:#e8d3b0}
+  .warn b{color:#fff}
+  .vrow{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:12px 14px;margin-bottom:9px;
+        display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .vpick{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:600}
+  .vpick .lg{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-top:2px}
+  .vnums{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+  .vedge{font-family:"Barlow Condensed",sans-serif;font-size:20px;font-weight:700;color:var(--home)}
+  .res{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .res b{font-family:"Barlow Condensed",sans-serif;font-size:16px;color:var(--text)}
+  .hit{color:var(--home)} .miss{color:var(--loss)}
+  footer{margin-top:26px;color:var(--muted);font-size:12px;line-height:1.6;border-top:1px solid var(--line);padding-top:14px}
+  @media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:var(--home)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Lower-League Model</h1>
+    <div class="sub" id="sub"></div>
+  </header>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+  <footer id="foot"></footer>
+</div>
+<script>
+const DATA = {"generated": "15/08/2026 15:29 UTC", "mode": "live", "leagues": [{"name": "Championship", "fixtures": [{"home": "Sheffield United", "away": "Birmingham", "date": "15/08/2026", "p_home": 0.477, "p_draw": 0.27, "p_away": 0.253, "over25": 0.472, "btts": 0.512, "cs_home": 0.353, "cs_away": 0.219, "xg_home": 1.52, "xg_away": 1.04, "tops": [{"score": "1-1", "p": 0.129}, {"score": "1-0", "p": 0.111}, {"score": "2-1", "p": 0.093}], "form_home": "WWLLW", "form_away": "WDWWD", "time": "17:30", "h2h": {"n": 6, "w": 3, "d": 2, "l": 1, "last": "1-1 (Birmingham h)"}, "btts_bh": 0.047, "fh_over05": 0.736, "corners_exp": 9.6, "corners_o95": 0.491, "referee": "G Ward", "cards_exp": 3.6, "cards_o35": 0.485, "odds3": [2.45, 3.3, 2.75], "mkt3": [0.38, 0.282, 0.338], "pb_home": 0.428, "pb_draw": 0.276, "pb_away": 0.296, "value": {"pick": "Home", "model": 0.477, "market": 0.38, "edge": 0.097, "odds": 2.45}}, {"home": "Watford", "away": "Southampton", "date": "16/08/2026", "p_home": 0.232, "p_draw": 0.238, "p_away": 0.53, "over25": 0.582, "btts": 0.586, "cs_home": 0.156, "cs_away": 0.312, "xg_home": 1.16, "xg_away": 1.86, "tops": [{"score": "1-1", "p": 0.111}, {"score": "1-2", "p": 0.098}, {"score": "0-1", "p": 0.085}], "form_home": "LLLLL", "form_away": "WWDDW", "time": "13:30", "h2h": {"n": 4, "w": 0, "d": 2, "l": 2, "last": "1-0 (Southampton h)"}, "btts_bh": 0.051, "fh_over05": 0.701, "corners_exp": 10.9, "corners_o95": 0.649, "referee": "M Donohue", "cards_exp": 4.5, "cards_o35": 0.656, "odds3": [2.85, 3.5, 2.25], "mkt3": [0.325, 0.264, 0.411], "pb_home": 0.278, "pb_draw": 0.251, "pb_away": 0.471, "value": {"pick": "Away", "model": 0.53, "market": 0.411, "edge": 0.119, "odds": 2.25}}, {"home": "Cardiff", "away": "Wrexham", "date": "17/08/2026", "p_home": 0.299, "p_draw": 0.251, "p_away": 0.451, "over25": 0.576, "btts": 0.602, "cs_home": 0.188, "cs_away": 0.266, "xg_home": 1.33, "xg_away": 1.67, "tops": [{"score": "1-1", "p": 0.116}, {"score": "1-2", "p": 0.092}, {"score": "0-1", "p": 0.078}], "form_home": "LLDDL", "form_away": "LWWLD", "time": "20:00", "btts_bh": 0.058, "fh_over05": 0.736, "corners_exp": 10.4, "corners_o95": 0.591, "referee": "A Kitchen", "cards_exp": 2.9, "cards_o35": 0.33, "odds3": [3.4, 3.5, 2.05], "mkt3": [0.275, 0.268, 0.457], "pb_home": 0.287, "pb_draw": 0.259, "pb_away": 0.454}], "honesty": {"n": 197, "model_rps": 0.2152, "base_rps": 0.233, "btts_pred": 0.5, "btts_obs": 0.57}, "has_cards": true, "has_odds": true}, {"name": "League One", "fixtures": [], "honesty": {"n": 213, "model_rps": 0.2138, "base_rps": 0.2256, "btts_pred": 0.49, "btts_obs": 0.56}, "has_cards": true, "has_odds": true}, {"name": "League Two", "fixtures": [], "honesty": null, "has_cards": true, "has_odds": true}]};
+const pct = x => (x*100).toFixed(0)+'%';
+function formHTML(s){return [...s].map(c=>`<span class="pill ${c}">${c}</span>`).join('')}
+function fixtureHTML(fx){
+  const th=pct(fx.p_home),td=pct(fx.p_draw),ta=pct(fx.p_away);
+  let res='';
+  if(fx.result){
+    const pick=Math.max(fx.p_home,fx.p_draw,fx.p_away);
+    const pi=pick===fx.p_home?0:(pick===fx.p_draw?1:2);
+    const [h,a]=fx.result.split('-').map(Number);
+    const oc=h>a?0:(h===a?1:2);
+    res=`<div class="res">Final <b>${fx.result}</b> · model favoured
+         ${['home','draw','away'][pi]} <span class="${pi===oc?'hit':'miss'}">${pi===oc?'✓':'✗'}</span></div>`;
+  }
+  const corners=fx.corners_o95!=null?`<div class="chip">Over 9.5 corners <b>${pct(fx.corners_o95)}</b></div>`:'';
+  const cards=fx.cards_o35!=null?`<div class="chip">Over 3.5 cards <b>${pct(fx.cards_o35)}</b></div>`:'';
+  const bh=fx.btts_bh!=null?`<div class="chip">BTTS both halves <b>${pct(fx.btts_bh)}</b></div>`:'';
+  const fh=fx.fh_over05!=null?`<div class="chip">1st-half goal <b>${pct(fx.fh_over05)}</b></div>`:'';
+  const dby=fx.derby?`<span class="derby">${fx.derby}</span>`:'';
+  let h2hHTML='';
+  if(fx.h2h){const q=fx.h2h;h2hHTML=`<div class="h2h">H2H last ${q.n}: <b>${q.w}</b>-<b>${q.d}</b>-<b>${q.l}</b> <span>(${fx.home.split(' ')[0]} view)</span> · last ${q.last}</div>`;}
+  return `<div class="card">
+    <div class="row">
+      <div class="teams">${fx.home}<span class="vs">v</span>${fx.away} ${dby}</div>
+      <div class="date">${fx.date}${fx.time?` · ${fx.time}`:''}</div>
+    </div>
+    <div class="form">${formHTML(fx.form_home)} <span style="color:var(--line)">|</span> ${formHTML(fx.form_away)}</div>
+    ${(fx.note_home||fx.note_away)?`<div class="news">${fx.note_home?`<b>${fx.home.split(' ')[0]}:</b> ${fx.note_home} `:''}${fx.note_away?`<b>${fx.away.split(' ')[0]}:</b> ${fx.note_away}`:''}</div>`:''}
+    <div class="bar">
+      <div class="seg h" style="width:${th}">${th}</div>
+      <div class="seg d" style="width:${td}">${td}</div>
+      <div class="seg a" style="width:${ta}">${ta}</div>
+    </div>
+    <div class="barkey"><span>Home win</span><span>Draw</span><span>Away win</span></div>
+    <div class="chips">
+      <div class="chip">Over 2.5 <b>${pct(fx.over25)}</b></div>
+      <div class="chip">BTTS <b>${pct(fx.btts)}</b></div>
+      ${bh}${fh}
+      <div class="chip">Clean sheet H <b>${pct(fx.cs_home)}</b> · A <b>${pct(fx.cs_away)}</b></div>
+      ${corners}${cards}
+    </div>
+    <div class="scores">${fx.tops.map(t=>`<div class="score">${t.score}<span>${pct(t.p)}</span></div>`).join('')}</div>
+    ${h2hHTML}
+    ${res}
+  </div>`;
+}
+function leagueHTML(lg){
+  let h='';
+  const hp=lg.honesty;
+  if(hp){
+    h+=`<div class="honesty">
+      <span>Backtest (last 90 days, ${hp.n} matches): model RPS <b>${hp.model_rps}</b> vs prior <b>${hp.base_rps}</b> — lower is better.</span>
+      ${hp.btts_pred!=null?`<span>BTTS calibration: predicted <b>${hp.btts_pred}</b> → observed <b>${hp.btts_obs}</b>.</span>`:''}</div>`;
+  }
+  if(!lg.has_cards) h+=`<div class="honesty" style="border-left-color:var(--away)">Cards, corners and closing-line value fill in automatically on the live football-data feed — this view is the free results mirror.</div>`;
+  h+=lg.fixtures.map(fixtureHTML).join('');
+  if(!lg.fixtures.length) h+=`<div class="card">No upcoming fixtures right now — this usually just means the next round hasn't been published yet, or games are mid-week. Check back after the current round.</div>`;
+  return h;
+}
+function valueHTML(){
+  const warn=`<div class="warn"><b>Read this first.</b> These are fixtures where the model most
+    disagrees with the bookmaker's price — not tips. The model has <b>not</b> been shown to beat the
+    closing line, so a flagged gap is as likely to be model error as a real edge. Treat each as a
+    hypothesis: note the price now, check where it closes, and only trust the signal if your
+    closing-line value is positive over a real sample. No stakes advice here by design.</div>`;
+  let picks=[];
+  DATA.leagues.forEach(l=>l.fixtures.forEach(f=>{if(f.value)picks.push({...f,lg:l.name});}));
+  picks.sort((a,b)=>b.value.edge-a.value.edge);
+  if(!picks.length) return warn+`<div class="card">No odds in this view, so nothing to compare.
+    The Model vs Market screen activates on the live feed (<code>python app.py</code>), which carries
+    bookmaker prices. This demo runs on the free results mirror, which has none.</div>`;
+  return warn+picks.map(f=>{const v=f.value;return `<div class="vrow">
+    <div><div class="vpick">${v.pick}: ${f.home} v ${f.away}<span class="lg">${f.lg} · ${f.date}</span></div></div>
+    <div class="vnums">model <b style="color:var(--text)">${pct(v.model)}</b> vs market ${pct(v.market)} · odds ${v.odds}
+      <div class="vedge">+${pct(v.edge)}</div></div></div>`;}).join('');
+}
+let accaSel=new Set();
+function accaCandidates(){
+  let c=[];
+  DATA.leagues.forEach(l=>l.fixtures.forEach(f=>{
+    const p=[f.p_home,f.p_draw,f.p_away]; const i=p.indexOf(Math.max(...p));
+    c.push({id:`${f.home}|${f.away}|${f.date}`,lg:l.name,home:f.home,away:f.away,date:f.date,
+            pick:['Home','Draw','Away'][i],model:p[i],
+            odds:f.odds3?f.odds3[i]:null,mkt:f.mkt3?f.mkt3[i]:null});
+  }));
+  return c.sort((a,b)=>b.model-a.model);
+}
+function accaSummary(){
+  const legs=accaCandidates().filter(c=>accaSel.has(c.id));
+  if(!legs.length) return '<div class="accread">Tick legs below (or use the quick-picks) to build a ticket. Each leg multiplies the all-must-win chance down.</div>';
+  let mp=1,haveOdds=legs.every(l=>l.odds),odds=1,mkt=1;
+  legs.forEach(l=>{mp*=l.model;if(haveOdds){odds*=l.odds;mkt*=l.mkt;}});
+  let s=`<div class="accsum"><div>Legs<b>${legs.length}</b></div><div>Model: it all lands<b>${pct(mp)}</b></div>`;
+  let read;
+  if(haveOdds){
+    const ev=mp*odds-1;
+    s+=`<div>Combined odds<b>${odds.toFixed(2)}</b></div><div>Book-implied chance<b>${pct(mkt)}</b></div>`+
+       `<div>Model edge<b class="${ev>=0?'hit':'miss'}">${(ev*100).toFixed(0)}%</b></div>`;
+    read = ev>=0
+      ? 'Model shows positive expectation — but it rests on probabilities not yet proven to beat the close, and the margin still compounds with every leg. Hypothesis, not a green light: log the CLV.'
+      : `Negative expectation: the model reckons this ticket is priced against you by ${(-ev*100).toFixed(0)}%. That gap is the compounded bookmaker margin — it grows every time you add a leg. This is the normal result for an acca.`;
+  } else {
+    read='Odds appear on the live feed, which unlocks the expected-value read. From model probability alone: '+legs.length+' legs at these confidences all landing is '+pct(mp)+'.';
+  }
+  s+=`</div><div class="accread">${read}</div>`;
+  return s;
+}
+function accaToggle(id){ accaSel.has(id)?accaSel.delete(id):accaSel.add(id); refreshAcca(); }
+function accaTop(n){ accaSel=new Set(accaCandidates().slice(0,n).map(c=>c.id)); refreshAcca(); }
+function refreshAcca(){
+  document.getElementById('accsummary').innerHTML=accaSummary();
+  document.querySelectorAll('.accrow').forEach(r=>r.classList.toggle('sel',accaSel.has(r.dataset.id)));
+  document.querySelectorAll('.accrow input').forEach(cb=>cb.checked=accaSel.has(cb.closest('.accrow').dataset.id));
+}
+function accaHTML(){
+  const c=accaCandidates();
+  const warn=`<div class="warn"><b>How accumulators actually work.</b> Ranking by most-likely result surfaces
+    short-priced favourites the book prices about the same as the model — no edge, and the vig compounds with every
+    leg (a 10-fold can carry 30%+ margin). "Most likely" is not "best value". Use this to see what a ticket really
+    is, not as a tipsheet.</div>`;
+  const quick=`<div class="quick">Quick-pick:
+    <button onclick="accaTop(3)">Top 3</button><button onclick="accaTop(5)">Top 5</button>
+    <button onclick="accaTop(10)">Top 10</button><button onclick="accaSel=new Set();refreshAcca()">Clear</button></div>`;
+  const rows=c.map(x=>`<label class="accrow" data-id="${x.id}">
+      <input type="checkbox" onchange="accaToggle('${x.id}')">
+      <div class="m">${x.pick}: ${x.home} v ${x.away}<span>${x.lg} · ${x.date}</span></div>
+      <div class="n">model <b>${pct(x.model)}</b>${x.odds?` · odds ${x.odds}`:''}</div>
+    </label>`).join('');
+  return warn+`<div id="accsummary">${accaSummary()}</div>`+quick+rows;
+}
+function show(i){
+  const tabs=document.querySelectorAll('.tab');
+  tabs.forEach((t,j)=>t.classList.toggle('on',i===j));
+  const v=document.getElementById('view');
+  if(i<DATA.leagues.length) v.innerHTML=leagueHTML(DATA.leagues[i]);
+  else if(i===DATA.leagues.length) v.innerHTML=valueHTML();
+  else { v.innerHTML=accaHTML(); refreshAcca(); }
+}
+document.getElementById('sub').innerHTML=
+  `<span>Generated ${DATA.generated}</span><span class="badge">${DATA.mode}</span>`;
+document.getElementById('tabs').innerHTML=
+  DATA.leagues.map((l,i)=>`<button class="tab" onclick="show(${i})">${l.name}</button>`).join('')
+  + `<button class="tab" onclick="show(${DATA.leagues.length})">⚑ Model vs Market</button>`
+  + `<button class="tab" onclick="show(${DATA.leagues.length+1})">Σ Acca Lab</button>`;
+document.getElementById('foot').innerHTML=
+  'Probabilities are calibrated estimates, not certainties — in these tiers the goals signal is thin, '+
+  'so treat the model as a base rate and lineups, injuries and referees as the real edge. '+
+  'Score yourself against the closing line (CLV), not against your own baseline.';
+if(DATA.leagues.length) show(0);
+</script>
+</body>
+</html>
