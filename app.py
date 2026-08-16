@@ -87,8 +87,19 @@ class DixonColes:
         # top 3 scorelines
         flat=[(m[h,a],f"{h}-{a}") for h in range(4) for a in range(4)]
         flat.sort(reverse=True); tops=[{"score":s,"p":round(float(p),3)} for p,s in flat[:3]]
+        # most-likely COMBINED scenario (result + O/U2.5 + BTTS), joint prob from the matrix
+        buckets={}
+        for h in range(self.mg+1):
+            for a in range(self.mg+1):
+                res="Home win" if h>a else ("Draw" if h==a else "Away win")
+                ou="Over 2.5" if h+a>2 else "Under 2.5"
+                bt="both to score" if (h>0 and a>0) else "not both to score"
+                k=(res,ou,bt); buckets[k]=buckets.get(k,0)+m[h,a]
+        bk=max(buckets,key=buckets.get)
+        scenario={"result":bk[0],"goals":bk[1],"btts":bk[2],"p":round(float(buckets[bk]),3)}
         return dict(home=ph,draw=pd_,away=pa,over25=over,btts=btts,
-                    cs_home=cs_home,cs_away=cs_away,xg_home=float(lam),xg_away=float(mu),tops=tops)
+                    cs_home=cs_home,cs_away=cs_away,xg_home=float(lam),xg_away=float(mu),
+                    tops=tops,scenario=scenario)
 
 # --------------------------------------------------------------------------- #
 #  INGEST
@@ -98,6 +109,7 @@ def season_codes(start): return [f"{str(y)[-2:]}{str(y+1)[-2:]}" for y in range(
 def load_live():
     ren={"Date":"date","HomeTeam":"home","AwayTeam":"away","FTHG":"hg","FTAG":"ag",
          "HTHG":"hthg","HTAG":"htag",
+         "HS":"hs","AS":"as_","HST":"hst","AST":"ast",
          "Referee":"referee","HC":"hc","AC":"ac","HY":"hy","AY":"ay","HR":"hr","AR":"ar",
          "B365H":"b365_h","B365D":"b365_d","B365A":"b365_a",
          "PSCH":"psc_h","PSCD":"psc_d","PSCA":"psc_a"}
@@ -278,23 +290,36 @@ def build(df, demo):
             print(f"  {lg}: {len(slate)} upcoming fixtures to predict")
         model=DixonColes().fit(train.home,train.away,train.hg,train.ag,train.date.values,ref=train.date.max())
         known=set(model.teams); fixtures=[]; notes=load_notes()
-        XGW=0.4  # xG blend weight (Championship, when xG present)
+        XGW=0.4   # xG blend weight (Championship, when xG present)
+        SHW=0.35  # shots-on-target blend weight (all tiers, when shots present)
+        conv=None                                    # league goals-per-shot-on-target
+        if "hst" in d.columns:
+            ts=(train.hst.fillna(0).sum()+train.ast.fillna(0).sum())
+            if ts>0: conv=(train.hg.sum()+train.ag.sum())/ts
         for _,r in slate.iterrows():
             if r.home not in known or r.away not in known: continue
             lam=mu=None
-            if "hxg" in d.columns:                       # blend goals-strength with recent xG
+            if "hxg" in d.columns:                       # 1st choice: real xG (Championship)
                 xf_h=xg_rate(d,r.home,r.date,"for"); xa_a=xg_rate(d,r.away,r.date,"against")
                 xf_a=xg_rate(d,r.away,r.date,"for"); xa_h=xg_rate(d,r.home,r.date,"against")
                 if None not in (xf_h,xa_a,xf_a,xa_h):
                     lg_,mg_=model.base_lambda(r.home,r.away)
                     lam=(1-XGW)*lg_+XGW*(xf_h+xa_a)/2
                     mu =(1-XGW)*mg_+XGW*(xf_a+xa_h)/2
+            if lam is None and conv:                     # 2nd choice: shots-on-target proxy (L1/L2 too)
+                sf_h=sot_rate(d,r.home,r.date,"for"); sa_a=sot_rate(d,r.away,r.date,"against")
+                sf_a=sot_rate(d,r.away,r.date,"for"); sa_h=sot_rate(d,r.home,r.date,"against")
+                if None not in (sf_h,sa_a,sf_a,sa_h):
+                    lg_,mg_=model.base_lambda(r.home,r.away)
+                    lam=(1-SHW)*lg_+SHW*conv*(sf_h+sa_a)/2
+                    mu =(1-SHW)*mg_+SHW*conv*(sf_a+sa_h)/2
             p=model.predict(r.home,r.away,lam,mu)
             fx=dict(home=r.home,away=r.away,date=pd.to_datetime(r.date).strftime("%d/%m/%Y"),
                     p_home=round(p["home"],3),p_draw=round(p["draw"],3),p_away=round(p["away"],3),
                     over25=round(p["over25"],3),btts=round(p["btts"],3),
                     cs_home=round(p["cs_home"],3),cs_away=round(p["cs_away"],3),
                     xg_home=round(p["xg_home"],2),xg_away=round(p["xg_away"],2),tops=p["tops"],
+                    scenario=p["scenario"],
                     form_home=form_string(d,r.home,r.date),form_away=form_string(d,r.away,r.date))
             if "ko" in slate.columns and pd.notna(r.get("ko")):
                 fx["time"]=pd.to_datetime(r["ko"]).strftime("%H:%M")
@@ -397,6 +422,18 @@ def xg_rate(df, team, before, side, n=10):
         v.append(f if side=="for" else a)
     return float(np.mean(v))
 
+def sot_rate(df, team, before, side, n=10):
+    """Recent mean shots-on-target for/against — the free 'poor man's xG' signal
+    that DOES exist for League One & Two. Less noisy than goals."""
+    if "hst" not in df.columns: return None
+    sub=df[((df.home==team)|(df.away==team))&(df.date<before)].dropna(subset=["hst","ast"]).sort_values("date").tail(n)
+    if len(sub)<4: return None
+    v=[]
+    for _,r in sub.iterrows():
+        f,a=(r.hst,r.ast) if r.home==team else (r.ast,r.hst)
+        v.append(f if side=="for" else a)
+    return float(np.mean(v))
+
 # ---- Club Elo (free API) — activates on your live run --------------------- #
 def load_elo(date_iso):
     """All-club Elo on a date. Not reachable from the build sandbox."""
@@ -431,21 +468,34 @@ def load_notes(path="notes.json"):
     except Exception: return {}
 
 # ---- Proper rolling walk-forward backtest (validated here) ---------------- #
-def walkforward(d, half_life=HALF_LIFE, refit_every=45, min_train_days=400):
-    d=d.dropna(subset=["hg"]).sort_values("date").reset_index(drop=True)
-    start=d.date.min()+pd.Timedelta(days=min_train_days)
-    cuts=pd.date_range(start,d.date.max(),freq=f"{refit_every}D")
-    base=np.array([.44,.27,.29])
+def walkforward(d, half_life=HALF_LIFE, refit_every=45, min_train_days=400, use_shots=False):
+    d=d.sort_values("date").reset_index(drop=True)      # keep shots cols; drop only for training
+    played=d.dropna(subset=["hg"])
+    start=played.date.min()+pd.Timedelta(days=min_train_days)
+    cuts=pd.date_range(start,played.date.max(),freq=f"{refit_every}D")
+    base=np.array([.44,.27,.29]); SHW=0.35
     def _rps(p,o): c=np.cumsum(p);ob=np.zeros(3);ob[o]=1;return np.sum((c-np.cumsum(ob))**2)/2
     mr=[];br=[];hit=0;tot=0
     for cut in cuts:
-        tr=d[d.date<cut]; te=d[(d.date>=cut)&(d.date<cut+pd.Timedelta(days=refit_every))]
+        tr=played[played.date<cut]; te=played[(played.date>=cut)&(played.date<cut+pd.Timedelta(days=refit_every))]
         if len(te)==0 or tr.home.nunique()<6: continue
         m=DixonColes(half_life=half_life).fit(tr.home,tr.away,tr.hg,tr.ag,tr.date.values,ref=cut)
         known=set(m.teams)
+        conv=None
+        if use_shots and "hst" in tr.columns:
+            ts=tr.hst.fillna(0).sum()+tr.ast.fillna(0).sum()
+            if ts>0: conv=(tr.hg.sum()+tr.ag.sum())/ts
         for _,r in te.iterrows():
             if r.home not in known or r.away not in known: continue
-            p=m.predict(r.home,r.away); hda=np.array([p["home"],p["draw"],p["away"]])
+            lam=mu=None
+            if conv:                                    # apply the same shots blend the live app uses
+                sf_h=sot_rate(tr,r.home,r.date,"for"); sa_a=sot_rate(tr,r.away,r.date,"against")
+                sf_a=sot_rate(tr,r.away,r.date,"for"); sa_h=sot_rate(tr,r.home,r.date,"against")
+                if None not in (sf_h,sa_a,sf_a,sa_h):
+                    lg_,mg_=m.base_lambda(r.home,r.away)
+                    lam=(1-SHW)*lg_+SHW*conv*(sf_h+sa_a)/2
+                    mu =(1-SHW)*mg_+SHW*conv*(sf_a+sa_h)/2
+            p=m.predict(r.home,r.away,lam,mu); hda=np.array([p["home"],p["draw"],p["away"]])
             o=0 if r.hg>r.ag else (1 if r.hg==r.ag else 2)
             mr.append(_rps(hda,o)); br.append(_rps(base,o))
             hit+=int(np.argmax(hda)==o); tot+=1
@@ -460,6 +510,57 @@ def tune_half_life(d, grid=(120,160,200,240,300)):
         if best is None or s["model_rps"]<best[1]: best=(hl,s["model_rps"])
         print(f"  half_life={hl:3d}  RPS={s['model_rps']}  hit={s['hit_rate']}")
     return best
+
+# ---- API-Football injuries (free tier) ------------------------------------ #
+def get_apikey():
+    """Key from the APIFOOTBALL_KEY env var (used by the GitHub secret) or from a
+    local apikey file. Tolerates Windows' hidden double extension (apikey.txt.txt).
+    NEVER commit the key file to a public repo."""
+    import os, glob
+    k=os.environ.get("APIFOOTBALL_KEY")
+    if k: return k.strip()
+    for f in sorted(glob.glob("apikey*")):          # apikey.txt, apikey.txt.txt, apikey, ...
+        try:
+            v=open(f,encoding="utf-8-sig").read().strip()
+            if v: return v
+        except Exception: pass
+    return None
+
+APIF_LEAGUE_IDS={"Championship":40,"League One":41,"League Two":42}
+
+def _fetch_injuries(key, lid, season):
+    import urllib.request, json as _j
+    url=f"https://v3.football.api-sports.io/injuries?league={lid}&season={season}"
+    try:
+        resp=_j.loads(urllib.request.urlopen(urllib.request.Request(url,headers={"x-apisports-key":key}),timeout=30).read())
+        return resp.get("response",[]) or [], resp.get("errors")
+    except Exception as e:
+        return [], {"request":str(e)}
+
+def test_injuries():
+    """Probe: what does your key actually return for lower-league injuries? If the
+    free plan blocks the current season, fall back to a free season (2023) so we
+    can judge whether the injury data is worth paying for."""
+    key=get_apikey()
+    if not key:
+        print("No API key found. Create a file called apikey.txt in this folder,"
+              " paste your API-Football key into it, save, and run this again.")
+        return
+    now=pd.Timestamp.now(); season=now.year if now.month>=7 else now.year-1
+    for lg,lid in APIF_LEAGUE_IDS.items():
+        arr,errs=_fetch_injuries(key,lid,season)
+        blocked = errs and "plan" in str(errs).lower()
+        if blocked:
+            arr,errs=_fetch_injuries(key,lid,2023)          # free-allowed season, to judge quality
+            print(f"{lg}: current season needs a paid plan. 2023 (free) shows {len(arr)} injury records:")
+        else:
+            print(f"{lg}: {len(arr)} injury records for {season}"+ (f"  (message: {errs})" if errs else ""))
+        for item in arr[:6]:
+            pl=(item.get("player") or {}); tm=(item.get("team") or {})
+            print(f"    {tm.get('name')}: {pl.get('name')} — {pl.get('type')} / {pl.get('reason')}")
+        print()
+    print("Send Claude everything above. This shows whether the lower-league injury")
+    print("data is rich enough to be worth a paid plan, or too thin to bother.")
 
 # ---- CLV: log value picks, measure whether you beat the close ------------- #
 def log_picks(payload, path="picks_log.csv"):
@@ -507,8 +608,11 @@ def main():
     ap.add_argument("--backtest",action="store_true",help="proper multi-season walk-forward, per league")
     ap.add_argument("--tune",action="store_true",help="sweep the time-decay half-life")
     ap.add_argument("--clv",action="store_true",help="score logged value picks vs the closing line")
+    ap.add_argument("--test-injuries",dest="test_injuries",action="store_true",help="probe API-Football for lower-league injuries")
     a=ap.parse_args()
 
+    if a.test_injuries:
+        test_injuries(); return
     if a.clv:
         print("CLV report:", clv_report()); return
 
@@ -524,8 +628,13 @@ def main():
 
     if a.backtest:
         for lg in df.league.unique():
-            print(f"\n=== {lg} — walk-forward ===")
-            print(" ", walkforward(df[df.league==lg])); 
+            d=df[df.league==lg]
+            base=walkforward(d, use_shots=False)
+            shots=walkforward(d, use_shots=True)
+            print(f"\n=== {lg} (walk-forward) ===")
+            print(f"  base goals model : RPS {base['model_rps']}  vs prior {base['base_rps']}  (hit {base['hit_rate']})")
+            print(f"  + shots blend    : RPS {shots['model_rps']}"
+                  + ("   ⬅ improvement" if shots['model_rps']<base['model_rps'] else "   (no improvement)"))
         return
     if a.tune:
         for lg in df.league.unique():
@@ -589,6 +698,11 @@ TEMPLATE = r"""<!DOCTYPE html>
   .news{font-size:12px;color:#cdb890;background:#1e1a12;border:1px solid #4a3d22;border-radius:3px;
         padding:6px 9px;margin:-2px 0 11px;line-height:1.45}
   .news b{color:#e8d3b0;font-weight:600}
+  .scenario{background:var(--panel2);border:1px solid var(--home);border-radius:4px;padding:8px 11px;
+    margin-bottom:12px;font-size:13px;color:var(--text);line-height:1.4}
+  .scenario span{display:block;font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;
+    letter-spacing:.05em;font-size:11px;color:var(--home);margin-bottom:1px}
+  .scenario b{font-family:"Barlow Condensed",sans-serif;font-size:16px;color:var(--home);margin-left:4px}
   .bar{display:flex;height:26px;border-radius:3px;overflow:hidden;margin-bottom:4px}
   .seg{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#0d1117;min-width:34px}
   .seg.h{background:var(--home)} .seg.d{background:var(--draw)} .seg.a{background:var(--away)}
@@ -671,6 +785,7 @@ function fixtureHTML(fx){
   const dby=fx.derby?`<span class="derby">${fx.derby}</span>`:'';
   let h2hHTML='';
   if(fx.h2h){const q=fx.h2h;h2hHTML=`<div class="h2h">H2H last ${q.n}: <b>${q.w}</b>-<b>${q.d}</b>-<b>${q.l}</b> <span>(${fx.home.split(' ')[0]} view)</span> · last ${q.last}</div>`;}
+  const scn=fx.scenario?`<div class="scenario"><span>Most likely combination</span> ${fx.scenario.result}, ${fx.scenario.goals}, ${fx.scenario.btts} <b>${pct(fx.scenario.p)}</b></div>`:'';
   return `<div class="card">
     <div class="row">
       <div class="teams">${fx.home}<span class="vs">v</span>${fx.away} ${dby}</div>
@@ -678,6 +793,7 @@ function fixtureHTML(fx){
     </div>
     <div class="form">${formHTML(fx.form_home)} <span style="color:var(--line)">|</span> ${formHTML(fx.form_away)}</div>
     ${(fx.note_home||fx.note_away)?`<div class="news">${fx.note_home?`<b>${fx.home.split(' ')[0]}:</b> ${fx.note_home} `:''}${fx.note_away?`<b>${fx.away.split(' ')[0]}:</b> ${fx.note_away}`:''}</div>`:''}
+    ${scn}
     <div class="bar">
       <div class="seg h" style="width:${th}">${th}</div>
       <div class="seg d" style="width:${td}">${td}</div>
