@@ -17,7 +17,7 @@ score) are always populated. Cards/corners fill in only on the LIVE feed (they
 need the referee/HC/HY columns). CLV needs the closing-odds columns, also LIVE.
 """
 from __future__ import annotations
-import argparse, io, json, re, sys, tarfile, urllib.request, datetime as dt
+import argparse, io, json, re, sys, tarfile, time, urllib.request, datetime as dt
 import numpy as np, pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import poisson
@@ -106,6 +106,23 @@ class DixonColes:
 # --------------------------------------------------------------------------- #
 def season_codes(start): return [f"{str(y)[-2:]}{str(y+1)[-2:]}" for y in range(start, dt.date.today().year+1)]
 
+def _get(url, tries=4):
+    """Fetch bytes with a real-browser User-Agent and retries. football-data
+    sometimes blocks server/cloud IPs (e.g. GitHub Actions) or odd User-Agents;
+    a browser header plus a few retries gets past most of that."""
+    import time as _t
+    hdr={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+         "Accept":"text/csv,application/vnd.ms-excel,*/*",
+         "Accept-Language":"en-GB,en;q=0.9"}
+    last=None
+    for i in range(tries):
+        try:
+            return urllib.request.urlopen(urllib.request.Request(url,headers=hdr),timeout=40).read()
+        except Exception as e:
+            last=e; _t.sleep(3*(i+1))
+    raise last
+
 def load_live():
     ren={"Date":"date","HomeTeam":"home","AwayTeam":"away","FTHG":"hg","FTAG":"ag",
          "HTHG":"hthg","HTAG":"htag",
@@ -117,7 +134,7 @@ def load_live():
     for lg,(code,_) in DIVS.items():
         for s in season_codes(SEASONS_FROM):
             try:
-                raw=urllib.request.urlopen(urllib.request.Request(f"{LIVE_BASE}/{s}/{code}.csv",headers=UA),timeout=30).read()
+                raw=_get(f"{LIVE_BASE}/{s}/{code}.csv")
             except Exception: continue
             if not raw.strip(): continue
             d=pd.read_csv(io.BytesIO(raw),encoding="latin-1")
@@ -125,12 +142,15 @@ def load_live():
             d=d[list(keep)].rename(columns=keep); d["league"]=lg
             d["date"]=pd.to_datetime(d["date"],dayfirst=True,errors="coerce")
             out.append(d.dropna(subset=["date","home","away","hg","ag"]))
+    if not out:                                 # football-data served nothing (likely blocking this server)
+        print("  football-data returned no data — it may be blocking this server. Leaving the last build in place.")
+        return pd.DataFrame()
     df=pd.concat(out,ignore_index=True)
     # also pull this week's UPCOMING fixtures (+odds, no scores yet) so the slate
     # shows games still to be played. Defensive: if the file/format changes, we
     # just skip it and fall back to recent matches rather than crashing.
     try:
-        raw=urllib.request.urlopen(urllib.request.Request("https://www.football-data.co.uk/fixtures.csv",headers=UA),timeout=30).read()
+        raw=_get("https://www.football-data.co.uk/fixtures.csv")
         if raw[:3]==b"\xef\xbb\xbf": raw=raw[3:]                 # strip UTF-8 BOM if present
         fx=pd.read_csv(io.BytesIO(raw),encoding="latin-1")
         fx.columns=[str(c).replace("\ufeff","").strip() for c in fx.columns]
@@ -618,6 +638,9 @@ def main():
 
     print("Loading data…", "(demo mirror)" if a.demo else "(live football-data.co.uk)")
     df=load_demo() if a.demo else load_live()
+    if df is None or len(df)==0:
+        print("No data loaded this run — leaving the existing dashboard untouched (it will retry next time).")
+        return
     print(f"  {len(df)} matches across {df.league.nunique()} leagues")
 
     if a.xg and not a.demo:
