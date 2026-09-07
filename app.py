@@ -384,7 +384,53 @@ def build(df, demo):
         hp=holdout(d)
         payload["leagues"].append(dict(name=lg,fixtures=fixtures,honesty=hp,
                                         has_cards="hy" in d.columns,has_odds="psc_h" in d.columns))
+    payload["tickets"]=suggested_tickets(payload)
     return payload
+
+def suggested_tickets(payload):
+    """Three model-picked accumulators: a balanced 'most sensible' one across all
+    markets, a genuine long-shot (BTTS in both halves x3), and a results-only
+    5-fold. Combined probability = product across matches (independent games).
+    These pick the most LIKELY combinations — not proven value; the compounded
+    margin still applies (see the warning in the Acca Lab)."""
+    fx=[dict(f, league=lg["name"]) for lg in payload["leagues"] for f in lg["fixtures"]]
+    def result_leg(f):
+        return max([("Home win",f["p_home"]),("Draw",f["p_draw"]),("Away win",f["p_away"])],key=lambda x:x[1])
+    def leg(f,pick,pr): return {"home":f["home"],"away":f["away"],"league":f["league"],"pick":pick,"prob":round(float(pr),3)}
+    def pack(items):
+        comb=1.0
+        for _,pr in items: comb*=pr
+        return comb
+    t={}
+    # best 5-fold, results only (win or draw)
+    res=sorted(fx,key=lambda f:max(f["p_home"],f["p_draw"],f["p_away"]),reverse=True)[:5]
+    if len(res)>=2:
+        legs=[]; comb=1.0
+        for f in res:
+            lbl,pr=result_leg(f); comb*=pr; legs.append(leg(f,lbl,pr))
+        t["fivefold"]={"legs":legs,"combined":round(comb,4)}
+    # long-shot: both teams to score in both halves, 3 games
+    bh=sorted([f for f in fx if f.get("btts_bh") is not None],key=lambda f:f["btts_bh"],reverse=True)[:3]
+    if len(bh)>=2:
+        legs=[]; comb=1.0
+        for f in bh:
+            comb*=f["btts_bh"]; legs.append(leg(f,"Both teams to score in both halves",f["btts_bh"]))
+        t["longshot"]={"legs":legs,"combined":round(comb,4)}
+    # most sensible: best single selection per fixture across markets, top 5
+    def best_leg(f):
+        opts=[max([("Home win",f["p_home"]),("Draw",f["p_draw"]),("Away win",f["p_away"])],key=lambda x:x[1]),
+              ("Over 2.5 goals",f["over25"]) if f["over25"]>=0.5 else ("Under 2.5 goals",1-f["over25"]),
+              ("Both teams to score",f["btts"]) if f["btts"]>=0.5 else ("No both teams to score",1-f["btts"])]
+        if f.get("cards_o35") is not None: opts.append(("Over 3.5 cards",f["cards_o35"]))
+        if f.get("corners_o95") is not None: opts.append(("Over 9.5 corners",f["corners_o95"]))
+        return max(opts,key=lambda x:x[1])
+    cand=sorted([(f,)+best_leg(f) for f in fx],key=lambda x:x[2],reverse=True)[:5]
+    if len(cand)>=2:
+        legs=[]; comb=1.0
+        for f,lbl,pr in cand:
+            comb*=pr; legs.append(leg(f,lbl,pr))
+        t["sensible"]={"legs":legs,"combined":round(comb,4)}
+    return t
 
 def holdout(d):
     d=d.dropna(subset=["hg"]).sort_values("date"); cut=d.date.max()-pd.Timedelta(days=90)
@@ -760,6 +806,18 @@ TEMPLATE = r"""<!DOCTYPE html>
     font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:700;margin-top:2px}
   .accread{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--draw);
     border-radius:4px;padding:11px 14px;margin-bottom:14px;font-size:13px;line-height:1.5;color:var(--muted)}
+  .buildhdr{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.06em;
+    font-size:15px;font-weight:600;color:var(--muted);margin:22px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .ticket{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--home);
+    border-radius:5px;padding:13px 15px;margin-bottom:11px}
+  .thead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:9px}
+  .thead b{font-family:"Barlow Condensed",sans-serif;font-size:18px;font-weight:600;color:var(--text);display:block}
+  .thead span{font-size:12px;color:var(--muted)}
+  .tprob{text-align:right;font-family:"Barlow Condensed",sans-serif;font-size:26px;font-weight:700;line-height:1;white-space:nowrap}
+  .tprob em{display:block;font-family:Inter;font-size:10px;font-style:normal;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:2px}
+  .tleg{font-size:13px;color:var(--text);padding:5px 0;border-top:1px solid var(--line);line-height:1.4}
+  .tleg span{font-family:"Barlow Condensed",sans-serif;font-weight:600;color:var(--home);margin-right:4px}
+  .tleg em{font-style:normal;color:var(--muted);font-size:11px}
   .warn{background:#241a12;border:1px solid #6b4a1f;border-left:3px solid var(--draw);
         border-radius:4px;padding:13px 15px;margin-bottom:16px;font-size:13px;line-height:1.55;color:#e8d3b0}
   .warn b{color:#fff}
@@ -917,7 +975,25 @@ function accaHTML(){
       <div class="m">${x.pick}: ${x.home} v ${x.away}<span>${x.lg} · ${x.date}</span></div>
       <div class="n">model <b>${pct(x.model)}</b>${x.odds?` · odds ${x.odds}`:''}</div>
     </label>`).join('');
-  return warn+`<div id="accsummary">${accaSummary()}</div>`+quick+rows;
+  return warn+suggestedHTML()+`<div class="buildhdr">Or build your own</div>`+`<div id="accsummary">${accaSummary()}</div>`+quick+rows;
+}
+function ticketCard(t,title,sub,accent){
+  if(!t||!t.legs||!t.legs.length) return '';
+  const legs=t.legs.map(l=>`<div class="tleg"><span>${l.pick}</span> ${l.home} v ${l.away}
+     <em>${l.league} · ${pct(l.prob)}</em></div>`).join('');
+  return `<div class="ticket" style="border-left-color:${accent}">
+    <div class="thead"><div><b>${title}</b><span>${sub}</span></div>
+      <div class="tprob" style="color:${accent}">${pct(t.combined)}<em>combined</em></div></div>
+    ${legs}</div>`;
+}
+function suggestedHTML(){
+  const T=DATA.tickets||{};
+  if(!T.sensible&&!T.fivefold&&!T.longshot)
+    return `<div class="accread">Suggested tickets appear once there are upcoming fixtures in the slate.</div>`;
+  return `<div class="buildhdr" style="margin-top:0">Model's suggested tickets</div>`
+    + ticketCard(T.sensible,"Most sensible","best-balanced picks across all markets","var(--home)")
+    + ticketCard(T.fivefold,"Best 5-fold — results only","highest-confidence win/draw picks","var(--away)")
+    + ticketCard(T.longshot,"Long shot — BTTS in both halves ×3","a genuine lottery ticket; tiny chance, big price","var(--draw)");
 }
 function show(i){
   const tabs=document.querySelectorAll('.tab');
