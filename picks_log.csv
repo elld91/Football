@@ -285,3 +285,27 @@ logged,league,date,home,away,pick,model_p,market_p,odds_taken
 09/10/2026 12:42 UTC,League Two,10/10/2026,Shrewsbury,Exeter,Draw,0.373,0.297,3.1
 09/10/2026 12:42 UTC,League Two,10/10/2026,Oldham,Accrington,Away,0.28,0.184,5.0
 09/10/2026 12:42 UTC,League Two,10/10/2026,Tranmere,Rochdale,Away,0.324,0.243,3.8
+10/10/2026 12:01 UTC,Championship,10/10/2026,Sheffield United,Lincoln,Draw,0.317,0.273,3.4
+10/10/2026 12:01 UTC,Championship,10/10/2026,Blackburn,Cardiff,Home,0.427,0.349,2.65
+10/10/2026 12:01 UTC,Championship,10/10/2026,Bolton,Stoke,Home,0.393,0.35,2.65
+10/10/2026 12:01 UTC,Championship,10/10/2026,Middlesbrough,Wolves,Away,0.393,0.323,2.85
+10/10/2026 12:01 UTC,Championship,10/10/2026,Preston,Millwall,Away,0.433,0.393,2.35
+10/10/2026 12:01 UTC,League One,10/10/2026,Wycombe,Luton,Home,0.434,0.357,2.57
+10/10/2026 12:01 UTC,League One,10/10/2026,Stockport,Barnsley,Away,0.217,0.132,7.0
+10/10/2026 12:01 UTC,League One,10/10/2026,Milton Keynes Dons,Reading,Away,0.439,0.386,2.4
+10/10/2026 12:01 UTC,League One,10/10/2026,Mansfield,Bromley,Home,0.69,0.539,1.71
+10/10/2026 12:01 UTC,League One,10/10/2026,Leicester,Peterboro,Away,0.285,0.183,5.0
+10/10/2026 12:01 UTC,League One,10/10/2026,Doncaster,Burton,Away,0.323,0.193,4.75
+10/10/2026 12:01 UTC,League One,10/10/2026,Notts County,Oxford,Away,0.479,0.356,2.57
+10/10/2026 12:01 UTC,League One,10/10/2026,Bradford,Leyton Orient,Away,0.251,0.204,4.5
+10/10/2026 12:01 UTC,League One,10/10/2026,Cambridge,Blackpool,Away,0.364,0.279,3.3
+10/10/2026 12:01 UTC,League One,10/10/2026,Huddersfield,Sheffield Weds,Away,0.397,0.212,4.33
+10/10/2026 12:01 UTC,League Two,10/10/2026,Rotherham,Gillingham,Away,0.283,0.224,4.1
+10/10/2026 12:01 UTC,League Two,10/10/2026,Port Vale,Grimsby,Away,0.389,0.355,2.57
+10/10/2026 12:01 UTC,League Two,10/10/2026,Crawley Town,Chesterfield,Home,0.252,0.193,4.75
+10/10/2026 12:01 UTC,League Two,10/10/2026,Cheltenham,Salford,Home,0.318,0.231,4.0
+10/10/2026 12:01 UTC,League Two,10/10/2026,Bristol Rvs,Barnet,Away,0.421,0.322,2.85
+10/10/2026 12:01 UTC,League Two,10/10/2026,Swindon,Crewe,Home,0.395,0.358,2.55
+10/10/2026 12:01 UTC,League Two,10/10/2026,Shrewsbury,Exeter,Draw,0.373,0.297,3.1
+10/10/2026 12:01 UTC,League Two,10/10/2026,Oldham,Accrington,Away,0.28,0.184,5.0
+10/10/2026 12:01 UTC,League Two,10/10/2026,Tranmere,Rochdale,Away,0.324,0.243,3.8
