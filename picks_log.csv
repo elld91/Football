@@ -550,3 +550,6 @@ logged,league,date,home,away,pick,model_p,market_p,odds_taken
 24/11/2026 17:04 UTC,League One,24/11/2026,Bradford,Barnsley,Away,0.246,0.178,5.25
 24/11/2026 17:04 UTC,League One,24/11/2026,Blackpool,Leicester,Home,0.303,0.207,4.5
 24/11/2026 17:04 UTC,League Two,24/11/2026,Port Vale,Northampton,Away,0.303,0.258,3.6
+25/11/2026 16:53 UTC,Championship,25/11/2026,Bolton,West Brom,Home,0.315,0.255,3.7
+25/11/2026 16:53 UTC,Championship,25/11/2026,Watford,Blackburn,Away,0.385,0.348,2.7
+25/11/2026 16:53 UTC,Championship,25/11/2026,Burnley,Birmingham,Away,0.429,0.368,2.55
